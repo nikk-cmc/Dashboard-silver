@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Silver Pro Dashboard</title>
+
+<script src="https://eur01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fcdnjs.cloudflare.com%2Fajax%2Flibs%2FChart.js%2F4.4.1%2Fchart.umd.min.js&data=05%7C02%7CNiko.Kisser%40bmw.de%7Ca5bc97e6ef144819d2b708de8afe2096%7Cce849babcc1c465bb62e18f07c9ac198%7C0%7C0%7C639101021241246590%7CUnknown%7CTWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D%7C0%7C%7C%7C&sdata=RoiPkyw3qiYXBq%2BueQ9UfwtYslEAxZGPeH1%2Bf9M3ubc%3D&reserved=0"></script>
+
+<style>
+body {
+  background:#0d1117;
+  color:#e6edf3;
+  font-family:sans-serif;
+  padding:10px;
+}
+
+.box {
+  background:#161b22;
+  border:1px solid #30363d;
+  border-radius:10px;
+  padding:10px;
+  margin-bottom:10px;
+}
+
+.critical {
+  border:2px solid #f85149;
+  animation:pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%,100%{opacity:1}
+  50%{opacity:.6}
+}
+
+.green { color:#3fb950; }
+.red { color:#f85149; }
+
+#signalBox {
+  font-weight:bold;
+  font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🔴 SILVER PRO DASHBOARD</h2>
+
+<div id="signalBox" class="box critical" style="display:none;"></div>
+
+<div class="box">
+  <b>Live Preis:</b> <span id="price">70.59</span> </div>
+
+<div class="box">
+  <canvas id="chart"></canvas>
+</div>
+
+<script>
+
+// ================= DATA ================= let prices = [
+  71.2,71.1,71.0,70.9,70.8,70.7,70.65,70.59
+];
+
+let volumes = [800,900,1200,1500,2000,2100,2300,2500];
+
+// ================= INDICATORS =================
+
+// EMA
+function calcEMA(data, period) {
+  const k = 2 / (period + 1);
+  let ema = [data[0]];
+
+  for (let i = 1; i < data.length; i++) {
+    ema.push(data[i] * k + ema[i-1] * (1-k));
+  }
+
+  return ema;
+}
+
+// VWAP (ECHT)
+function calcVWAP(prices, volumes) {
+  let pv = 0;
+  let vol = 0;
+
+  return prices.map((p,i)=>{
+    pv += p * volumes[i];
+    vol += volumes[i];
+    return pv / vol;
+  });
+}
+
+// ================= SIGNAL SYSTEM =================
+
+function detectShort(prices) {
+  let l = prices.length - 1;
+
+  let broke = prices[l-2] > 70 && prices[l-1] < 70;
+  let retest = prices[l] > 69.9 && prices[l] < 70.2;
+  let reject = prices[l] < prices[l-1];
+
+  return broke && retest && reject;
+}
+
+function detectLong(prices) {
+  let l = prices.length - 1;
+
+  let sweep = prices[l-2] > 70 && prices[l-1] < 70;
+  let reclaim = prices[l] > 70;
+
+  return sweep && reclaim;
+}
+
+function updateSignal() {
+  const box = document.getElementById("signalBox");
+
+  if (detectShort(prices)) {
+    box.style.display = "block";
+    box.innerHTML = "🔴 SHORT SIGNAL (Break + Retest)";
+    box.classList.add("red");
+  }
+  else if (detectLong(prices)) {
+    box.style.display = "block";
+    box.innerHTML = "🟢 LONG SIGNAL (Sweep + Reclaim)";
+    box.classList.add("green");
+  }
+  else {
+    box.style.display = "none";
+  }
+}
+
+// ================= CHART =================
+
+let ema9 = calcEMA(prices, 9);
+let ema21 = calcEMA(prices, 21);
+let vwap = calcVWAP(prices, volumes);
+
+new Chart(document.getElementById("chart"), {
+  type:"line",
+  data:{
+    labels: prices.map((_,i)=>i),
+    datasets:[
+      {data:prices, borderColor:"#ff7b72", borderWidth:2},
+      {data:ema9, borderColor:"#58a6ff"},
+      {data:ema21, borderColor:"#f0883e"},
+      {data:vwap, borderColor:"#3fb950"}
+    ]
+  },
+  options:{
+    plugins:{legend:{display:false}}
+  }
+});
+
+// ================= INIT =================
+
+updateSignal();
+
+</script>
+
+</body>
+</html>
